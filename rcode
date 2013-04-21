@@ -1,0 +1,56 @@
+download.file("http://download.geofabrik.de/europe/great-britain/scotland-latest.osm.bz2",
+              "scotland-latest.osm.bz2")
+
+system("bzip2 -d scotland-latest.osm.bz2")
+
+setwd("/home/tim/R/polys")
+
+files  <- list.files(pattern ='\\.poly$')
+files <- list(files)
+stats <- lapply(files, function(name){
+  
+ osmosis1 <- paste("osmosis --read-xml file=scotland.osm --tf accept-ways highway=* --used-node --bounding-polygon file=",(name)," --write-xml file=",(name),".osm",sep="")
+
+ return(osmosis1)
+})
+
+for (i in 1:3){
+  system(stats[[1]][i])
+}
+
+files2  <- list.files(pattern ='\\.poly.osm$')
+files2 <- list(files2)
+
+stats3 <- lapply(files2[[1]], function(osm2){
+
+  ua <- get_osm(complete_file(), source = osmsource_file(osm2))
+
+  return(ua)
+})
+
+
+stats4 <- lapply(stats3, function(osm3){
+usersways <-(unique((osm3)$nodes$attrs$user))
+usersways <- as.character(usersways)
+usersways <- data.frame(usersways)
+return(usersways)
+})
+
+stats5 <- lapply(stats3, function(osm3){
+usersways <- (unique((osm3)$ways$attrs$user))
+usersways <- as.character(usersways)
+usersways <- data.frame(usersways)
+return(usersways)
+})
+
+
+df <- ldply(listOfDataFrames, data.frame)
+df <- ldply(stats5, data.frame)
+df2 <- ldply(stats4, data.frame)
+df3 <- merge(df,df2,by="usersways", all=TRUE)
+df3$usersways <- as.character(df3$usersways)
+df4 <- unique(df3)
+
+length(unique(df4$userways))
+totalusers <- max(row.names(df4))
+
