@@ -1,3 +1,17 @@
+library(osmar)
+library(rgeos)
+library(rgdal)
+library(knitr)
+library(sp)
+library(ROAuth)
+library(twitteR)
+library(RCurl)
+library(plyr)
+library(SortableHTMLTables)
+library(log4r)
+
+
+
 download.file("http://download.geofabrik.de/europe/great-britain/scotland-latest.osm.bz2",
               "scotland-latest.osm.bz2")
 
@@ -9,12 +23,12 @@ files  <- list.files(pattern ='\\.poly$')
 files <- list(files)
 stats <- lapply(files, function(name){
   
- osmosis1 <- paste("osmosis --read-xml file=scotland.osm --tf accept-ways highway=* --used-node --bounding-polygon file=",(name)," --write-xml file=",(name),".osm",sep="")
+ osmosis1 <- paste("osmosis --read-xml file=scotland.osm --tf accept-ways highway=cycleway --used-node --bounding-polygon file=",(name)," --write-xml file=",(name),".osm",sep="")
 
  return(osmosis1)
 })
 
-for (i in 1:3){
+for (i in 1:73){
   system(stats[[1]][i])
 }
 
@@ -44,13 +58,97 @@ return(usersways)
 })
 
 
-df <- ldply(listOfDataFrames, data.frame)
 df <- ldply(stats5, data.frame)
 df2 <- ldply(stats4, data.frame)
 df3 <- merge(df,df2,by="usersways", all=TRUE)
 df3$usersways <- as.character(df3$usersways)
 df4 <- unique(df3)
 
-length(unique(df4$userways))
 totalusers <- max(row.names(df4))
 
+stats6 <- lapply(stats3, function(osm4){
+  test<-osm4$ways$tags$v == "cycleway"
+  test2<- (any(test == TRUE))
+  if(test2==TRUE){  
+hw_ids3 <- find(osm4, way(tags(k == "highway" & v == "cycleway" ! v == "mtb")))
+find(osm4, way(tags(k =="bicycle" & v == "yes")))
+hw_ids3 <- find_down(osm4, way(hw_ids3))
+hw3 <- subset(osm4, ids = hw_ids3)
+hw_poly <- as_sp(osm4, "lines")
+hwrUTM <-spTransform(hw_poly,CRS("+proj=utm")) 
+ncnLength <- SpatialLinesLengths(hwrUTM)
+ncnLength <- sum(ncnLength)
+return(ncnLength)
+}})
+#data <- data.frame(number, users)
+   
+non.null.list <- lapply(stats6, function(x){
+  ifelse(is.null(x), NA, x)})
+
+lengths <- rbind.fill(lapply(non.null.list, function(f) {
+  as.data.frame(Filter(Negate(is.null), f))
+}))
+
+
+
+
+allconusers <- lapply(stats4, function(x){
+conusers <- data.frame(x)
+conusers2 <- length(levels(conusers$usersways))
+return(conusers2)
+})
+
+AllUsers <- rbind.fill(lapply(allconusers, function(f) {
+  as.data.frame(f)
+}))
+
+nodeallconusers <- lapply(stats5, function(x){
+  conusers <- data.frame(x)
+  conusers2 <- length(levels(conusers$usersways))
+  return(conusers2)
+})
+
+AllUsers2 <- rbind.fill(lapply(nodeallconusers, function(f) {
+  as.data.frame(f)
+}))
+
+
+cnames <- data.frame(files)
+cnames$length <- lengths
+cnames$usernames <- (AllUsers$f + AllUsers2$f)
+cnames$nodeusers <- AllUsers2
+
+sortable.html.table(cnames, 'sample.html', 'sandbox')
+
+# srcpaste <- paste("file =",(name),".osm, osmosis = \"osmosis",sep="")
+# src <- osmsource_osmosis(srcpaste)
+ 
+# ua3paste <- paste("complete_file(), source = osmsource_file(paste(\"",(name),".osm))",sep="")
+#ua3 <- get_osm(ua3paste)
+  
+# users <- length(unique(ua3$nodes$attrs$user))
+return(osmfile)
+})
+
+paste("osmosis --read-xml file=scotland.osm --tf accept-ways highway=* --used-node --bounding-polygon file=",(files[1])," --write-xml file=",(files[1]),".osm",sep="")
+
+
+system("osmosis --read-xml file=scotland-latest.osm --bounding-polygon file=Glasgow.txt --write-xml file=polyglasgow.osm")
+src <- test
+src <- osmsource_osmosis(file ="Na_h-Eileanan_an_Iar_P_Const.osm", osmosis = "osmosis")
+
+#osmcom<-paste("osmosis --rx file=",world," --bp file=",gfilter," --tf accept-ways ",ffilter," --tf reject-relations --used-node --wx file=",filtered,sep="")
+#osmosis --read-xml file="planet-latest.osm" --bounding-polygon file="country.poly" --write-xml file="australia.osm"
+
+bb2 <- center_bbox(-4.2729, 55.8495, 2000000, 2000000)
+ua3 <- get_osm(complete_file(), source = osmsource_file("Na_h-Eileanan_an_Iar_P_Const.osm"))
+ua3 <- get_osm(complete_file(), source = osmsource_file(testosm2))
+testosm <- paste("complete_file(), source = osmsource_file(Na_h-Eileanan_an_Iar_P_Const.osm)")
+testosm2 <- paste("Na_h-Eileanan_an_Iar_P_Const.osm", sep="")
+datatable <- data.frame(1:1)
+
+
+########end of filtering
+ck <- (unique(stats3[[2]]$ways$attrs$user))
+length(unique(ua3$nodes$attrs$user))
+max(ua3$ways$attrs$timestamp)
