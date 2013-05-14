@@ -11,7 +11,7 @@ library(SortableHTMLTables)
 library(log4r)
 
 
-
+setwd("/home/tim/R/polys")
 download.file("http://download.geofabrik.de/europe/great-britain/scotland-latest.osm.bz2",
               "scotland-latest.osm.bz2")
 
@@ -20,87 +20,245 @@ system("bzip2 -d scotland-latest.osm.bz2")
 setwd("/home/tim/R/polys")
 
 files  <- list.files(pattern ='\\.poly$')
-files <- list(files)
-stats <- lapply(files, function(name){
-  
- osmosis1 <- paste("osmosis --read-xml file=scotland.osm --tf accept-ways highway=cycleway --used-node --bounding-polygon file=",(name)," --write-xml file=",(name),".osm",sep="")
+files1 <- list(files)
+number <- length(list.files(pattern ='\\.poly$'))
 
- return(osmosis1)
+stats <- lapply(files1, function(name){
+  
+  osmosis1 <- paste("osmosis --read-xml file=scotland.osm --tf accept-ways highway=* --used-node idTrackerType=Dynamic --bounding-polygon file=",(name)," --write-xml file=",(name),".osm",sep="")
+  
+  return(osmosis1)
 })
 
-for (i in 1:73){
-  system(stats[[1]][i])
+for (i in 1:(number)){
+    system(stats[[1]][i])
 }
 
 files2  <- list.files(pattern ='\\.poly.osm$')
 files2 <- list(files2)
 
 stats3 <- lapply(files2[[1]], function(osm2){
-
+  
   ua <- get_osm(complete_file(), source = osmsource_file(osm2))
-
+  
   return(ua)
 })
 
+NCN_length <- lapply(stats3, function(osm4){
+  test<-osm4$relations$tags$v == "ncn"
+  test2<- (any(test == TRUE))
+    if(test2==TRUE){
+    hwr_ids <- find(osm4, relation(tags(v=="ncn")))
+    hwr_ids <- find_down(osm4, relation(hwr_ids))
+        hwr1 <- subset(osm4, ids = hwr_ids)
+    ncn_poly <- as_sp(hwr1, "lines")
+    ncnUTM <-spTransform(ncn_poly,CRS("+proj=utm")) 
+    ncnLength <- SpatialLinesLengths(ncnUTM)
+    ncnLength <- sum(ncnLength)
+    ncnLength <- ncnLength / 1000
+    ncnLength <- round(ncnLength, digits=1)
+   return(ncnLength)
+  }})
 
-stats4 <- lapply(stats3, function(osm3){
-usersways <-(unique((osm3)$nodes$attrs$user))
-usersways <- as.character(usersways)
-usersways <- data.frame(usersways)
-return(usersways)
-})
+non.null.list <- lapply(NCN_length, function(x){
+  ifelse(is.null(x), NA, x)})
 
-stats5 <- lapply(stats3, function(osm3){
-usersways <- (unique((osm3)$ways$attrs$user))
-usersways <- as.character(usersways)
-usersways <- data.frame(usersways)
-return(usersways)
-})
+NCN_lengths <- rbind.fill(lapply(non.null.list, function(f) {
+  as.data.frame(Filter(Negate(is.null), f))
+})) # removing null values from NCN length (const without NCN network) and creating data.frame of lengths
+
+NCN_Proposed <- lapply(stats3, function(osm4){
+  test<-osm4$relations$tags$v == "proposed"
+  test2<- (any(test == TRUE))
+  if(test2==TRUE){
+    hwr_ids2 <- find(osm4, relation(tags(v=="proposed")))
+    hwr_ids2 <- find_down(osm4, relation(hwr_ids2))
+    hwr2 <- subset(osm4, ids = hwr_ids2)
+   ncn_p_poly <- as_sp(hwr2, "lines")
+      ncnUTMp <-spTransform(ncn_p_poly,CRS("+proj=utm")) 
+     ncnLengthp <- SpatialLinesLengths(ncnUTMp)
+      ncnLengthp <- sum(ncnLengthp)
+     ncnLengthtrue <- round(ncnLengthp, digits=1)
+    ncnLengthtrue <- ncnLengthtrue / 1000
+    return(ncnLengthtrue)
+  }})
+non.null.list <- lapply(NCN_Proposed, function(x){
+  ifelse(is.null(x), NA, x)})
+
+NCN_Propose <- rbind.fill(lapply(non.null.list, function(f) {
+  as.data.frame(Filter(Negate(is.null), f))
+})) 
+
+Mtbr <- lapply(stats3, function(osm4){
+  test<-osm4$relations$tags$v == "mtb"
+  test2<- (any(test == TRUE))
+  if(test2==TRUE){
+    hwr_ids2 <- find(osm4, relation(tags(v=="mtb")))
+    hwr_ids2 <- find_down(osm4, relation(hwr_ids2))
+    hwr2 <- subset(osm4, ids = hwr_ids2)
+    ncn_p_poly <- as_sp(hwr2, "lines")
+    ncnUTMp <-spTransform(ncn_p_poly,CRS("+proj=utm")) 
+    ncnLengthp <- SpatialLinesLengths(ncnUTMp)
+    ncnLengthp <- sum(ncnLengthp)
+    ncnLengthtrue <- round(ncnLengthp, digits=1)
+    ncnLengthtrue <- ncnLengthtrue / 1000
+    return(ncnLengthtrue)
+  }})
+non.null.list <- lapply(Mtbr, function(x){
+  ifelse(is.null(x), NA, x)})
+
+Mtbr <- rbind.fill(lapply(non.null.list, function(f) {
+  as.data.frame(Filter(Negate(is.null), f))
+})) 
+
+Mtbr <- replace(Mtbr, is.na(Mtbr), 0)
+
+Cycleway <- lapply(stats3, function(osm4){
+  test<-osm4$ways$tags$v == "cycleway"
+  test2<- (any(test == TRUE))
+  if(test2==TRUE){
+    hwr_ids2 <- find(osm4, way(tags(v=="cycleway")))
+    hwr_ids2 <- find_down(osm4, way(hwr_ids2))
+    hwr2 <- subset(osm4, ids = hwr_ids2)
+    ncn_p_poly <- as_sp(hwr2, "lines")
+    ncnUTMp <-spTransform(ncn_p_poly,CRS("+proj=utm")) 
+    ncnLengthp <- SpatialLinesLengths(ncnUTMp)
+    ncnLengthp <- sum(ncnLengthp)
+    ncnLengthtrue <- round(ncnLengthp, digits=1)
+    ncnLengthtrue <- ncnLengthtrue / 1000
+    return(ncnLengthtrue)
+  }})
+non.null.list2 <- lapply(Cycleway, function(x){
+  ifelse(is.null(x), NA, x)})
+
+Cycleway <- rbind.fill(lapply(non.null.list2, function(f) {
+  as.data.frame(Filter(Negate(is.null), f))
+})) 
+
+Mtb <- lapply(stats3, function(osm4){
+  test<-osm4$ways$tags$v == "mtb"
+  test2<- (any(test == TRUE))
+  if(test2==TRUE){
+    hwr_ids2 <- find(osm4, way(tags(v=="mtb")))
+    hwr_ids2 <- find_down(osm4, way(hwr_ids2))
+    hwr2 <- subset(osm4, ids = hwr_ids2)
+    ncn_p_poly <- as_sp(hwr2, "lines")
+    ncnUTMp <-spTransform(ncn_p_poly,CRS("+proj=utm")) 
+    ncnLengthp <- SpatialLinesLengths(ncnUTMp)
+    ncnLengthp <- sum(ncnLengthp)
+    ncnLengthtrue <- round(ncnLengthp, digits=1)
+    ncnLengthtrue <- ncnLengthtrue / 1000
+    return(ncnLengthtrue)
+  }})
+non.null.list2 <- lapply(Mtb, function(x){
+  ifelse(is.null(x), NA, x)})
+
+Mtb <- rbind.fill(lapply(non.null.list2, function(f) {
+  as.data.frame(Filter(Negate(is.null), f))
+})) 
+
+Mtb <- replace(Mtb, is.na(Mtb), 0) 
+
+TotalMtb <- Mtb + Mtbr
+
+Highway <- lapply(stats3, function(osm4){
+  test<-osm4$ways$tags$k == "highway"
+  test2<- (any(test == TRUE))
+  if(test2==TRUE){
+    hwr_ids2 <- find(osm4, way(tags(k=="highway")))
+    hwr_ids2 <- find_down(osm4, way(hwr_ids2))
+    hwr2 <- subset(osm4, ids = hwr_ids2)
+    ncn_p_poly <- as_sp(hwr2, "lines")
+    ncnUTMp <-spTransform(ncn_p_poly,CRS("+proj=utm")) 
+    ncnLengthp <- SpatialLinesLengths(ncnUTMp)
+    ncnLengthp <- sum(ncnLengthp)
+    ncnLengthtrue <- round(ncnLengthp, digits=1)
+    ncnLengthtrue <- ncnLengthtrue / 1000
+    return(ncnLengthtrue)
+  }})
+non.null.list3 <- lapply(Highway, function(x){
+  ifelse(is.null(x), NA, x)})
+
+Highway <- rbind.fill(lapply(non.null.list3, function(f) {
+  as.data.frame(Filter(Negate(is.null), f))
+})) 
 
 
-df <- ldply(stats5, data.frame)
-df2 <- ldply(stats4, data.frame)
-df3 <- merge(df,df2,by="usersways", all=TRUE)
-df3$usersways <- as.character(df3$usersways)
-df4 <- unique(df3)
+##### need to analysis different types of highwway making up relations?
 
-totalusers <- max(row.names(df4))
+NCNdata <- lapply(stats3, function(osm4){
+  test<-osm4$relations$tags$v == "ncn"
+  test2<- (any(test == TRUE))
+  if(test2==TRUE){
+    hwr_ids <- find(osm4, relation(tags(v=="ncn")))
+    hwr_ids <- find_down(osm4, relation(hwr_ids))
+    hwr1 <- subset(osm4, ids = hwr_ids)
+return(hwr1)
+}})
 
-stats6 <- lapply(stats3, function(osm4){
+
+NCNcycleways <- lapply(NCNdata, function(osm5){
+  test<-osm5$ways$tags$v == "cycleway"
+  test2<- (any(test == TRUE))
+ if(test2==TRUE){  
+    hwr_ids <- find(osm5, way(tags(v == "cycleway")))
+    hwr_ids <- find_down(osm5, way(hwr_ids))
+    hwr1 <- subset(osm5, ids = hwr_ids)
+    cycleway_poly <- as_sp(hwr1, "lines")
+    cyclewayUTM <-spTransform(cycleway_poly,CRS("+proj=utm")) 
+    cyclewayLength <- SpatialLinesLengths(cyclewayUTM)
+   cyclewayLength <- sum(cyclewayLength)
+        cyclewayLength <- cyclewayLength / 1000
+    cyclewayLength <- round(cyclewayLength, digits=1)
+    return(cyclewayLength)
+  }}) 
+
+non.null.list <- lapply(NCNcycleways, function(x){
+  ifelse(is.null(x), NA, x)})
+
+NCNcycleways <- rbind.fill(lapply(non.null.list, function(f) {
+  as.data.frame(Filter(Negate(is.null), f))
+})) 
+
+NCNcyclewaymap <- lapply(NCNdata, function(osm4){
   test<-osm4$ways$tags$v == "cycleway"
   test2<- (any(test == TRUE))
   if(test2==TRUE){  
-hw_ids3 <- find(osm4, way(tags(k == "highway" & v == "cycleway" ! v == "mtb")))
-find(osm4, way(tags(k =="bicycle" & v == "yes")))
-hw_ids3 <- find_down(osm4, way(hw_ids3))
-hw3 <- subset(osm4, ids = hw_ids3)
-hw_poly <- as_sp(osm4, "lines")
-hwrUTM <-spTransform(hw_poly,CRS("+proj=utm")) 
-ncnLength <- SpatialLinesLengths(hwrUTM)
-ncnLength <- sum(ncnLength)
-return(ncnLength)
-}})
-#data <- data.frame(number, users)
-   
-non.null.list <- lapply(stats6, function(x){
-  ifelse(is.null(x), NA, x)})
+    hwr_ids <- find(osm4, way(tags(v == "cycleway")))
+    hwr_ids <- find_down(osm4, way(hwr_ids))
+    hwr1 <- subset(osm4, ids = hwr_ids)
+return(hwr1)
+  }})
 
-lengths <- rbind.fill(lapply(non.null.list, function(f) {
-  as.data.frame(Filter(Negate(is.null), f))
-}))
+for (i in 1:(number)){
+  test <- NCNcyclewaymap[i] == "NULL"
+  test2 <- (any(test == TRUE))
+  if(test2==TRUE){
+    NCNcyclewaymap[i] <- "NA"}}
 
+stats4 <- lapply(NCNdata, function(osm3){
+  usersways <-(unique((osm3)$nodes$attrs$user))
+  usersways <- as.character(usersways)
+  usersways <- data.frame(usersways)
+  return(usersways)
+}) # unique user names on nodes per area
 
-
+stats5 <- lapply(NCNdata, function(osm3){
+  usersways <- (unique((osm3)$ways$attrs$user))
+  usersways <- as.character(usersways)
+  usersways <- data.frame(usersways)
+  return(usersways)
+}) # unique user names on ways per area
 
 allconusers <- lapply(stats4, function(x){
-conusers <- data.frame(x)
-conusers2 <- length(levels(conusers$usersways))
-return(conusers2)
+  conusers <- data.frame(x)
+  conusers2 <- length(levels(conusers$usersways))
+  return(conusers2)
 })
 
 AllUsers <- rbind.fill(lapply(allconusers, function(f) {
   as.data.frame(f)
-}))
+})) # user numbers from ways
 
 nodeallconusers <- lapply(stats5, function(x){
   conusers <- data.frame(x)
@@ -110,45 +268,92 @@ nodeallconusers <- lapply(stats5, function(x){
 
 AllUsers2 <- rbind.fill(lapply(nodeallconusers, function(f) {
   as.data.frame(f)
-}))
+}))  # user numbers from nodes
 
 
-cnames <- data.frame(files)
-cnames$length <- lengths
-cnames$usernames <- (AllUsers$f + AllUsers2$f)
-cnames$nodeusers <- AllUsers2
 
-sortable.html.table(cnames, 'sample.html', 'sandbox')
-
-# srcpaste <- paste("file =",(name),".osm, osmosis = \"osmosis",sep="")
-# src <- osmsource_osmosis(srcpaste)
- 
-# ua3paste <- paste("complete_file(), source = osmsource_file(paste(\"",(name),".osm))",sep="")
-#ua3 <- get_osm(ua3paste)
-  
-# users <- length(unique(ua3$nodes$attrs$user))
-return(osmfile)
-})
-
-paste("osmosis --read-xml file=scotland.osm --tf accept-ways highway=* --used-node --bounding-polygon file=",(files[1])," --write-xml file=",(files[1]),".osm",sep="")
+names <- strsplit(files, ".poly")
+namesall <- gsub("_", " ", names)
+names3 <- rbind.fill(lapply(namesall, function(Name) {
+  as.data.frame(Name)
+})) ## file names list removing .poly from end
 
 
-system("osmosis --read-xml file=scotland-latest.osm --bounding-polygon file=Glasgow.txt --write-xml file=polyglasgow.osm")
-src <- test
-src <- osmsource_osmosis(file ="Na_h-Eileanan_an_Iar_P_Const.osm", osmosis = "osmosis")
+ncndata <- names3
+ncndata$'NCN total length km' <- round(NCN_lengths / 2, digit=1)
+ncndata$'NCN total length km' <- replace(ncndata$'NCN total length km', is.na(ncndata$'NCN total length km'), 0) 
+ncndata$'NCN proposed km' <- round(NCN_Propose / 2, digit=1)
+ncndata$'NCN proposed km' <- replace(ncndata$'NCN proposed km', is.na(ncndata$'NCN proposed km'), 0) 
+ncndata$'NCN current length km' <- (ncndata$'NCN total length km' - ncndata$'NCN proposed km')
+ncndata$'Number of OSM Contributors' <- (AllUsers$f + AllUsers2$f)
+ncndata$'Length Cyclepath within NCN km' <- NCNcycleways
+ncndata$'Percentage of NCN Cyclepath' <- (100/ncndata$'NCN total length km') * ncndata$'Length Cyclepath within NCN km'
+ncndata$'Percentage of NCN Cyclepath' <- round(ncndata$'Percentage of NCN Cyclepath', digit=1)
+ncndata$'Total Highway (roads and paths)' <- round(Highway, digit=1)
+ncndata$'Total cycleway (in or out of NCN network)' <- round(Cycleway, digit=1)
+ncndata$'Current NCN Vs total highway length' <- (ncndata$'NCN current length km' / ncndata$'Total Highway (roads and paths)')
+ncndata$'Current NCN Vs total highway length' <- round(ncndata$'Current NCN Vs total highway length', digit=5)
+ncndata$'Total MTB only cycleway'<- TotalMtb$toal
 
-#osmcom<-paste("osmosis --rx file=",world," --bp file=",gfilter," --tf accept-ways ",ffilter," --tf reject-relations --used-node --wx file=",filtered,sep="")
-#osmosis --read-xml file="planet-latest.osm" --bounding-polygon file="country.poly" --write-xml file="australia.osm"
 
-bb2 <- center_bbox(-4.2729, 55.8495, 2000000, 2000000)
-ua3 <- get_osm(complete_file(), source = osmsource_file("Na_h-Eileanan_an_Iar_P_Const.osm"))
-ua3 <- get_osm(complete_file(), source = osmsource_file(testosm2))
-testosm <- paste("complete_file(), source = osmsource_file(Na_h-Eileanan_an_Iar_P_Const.osm)")
-testosm2 <- paste("Na_h-Eileanan_an_Iar_P_Const.osm", sep="")
-datatable <- data.frame(1:1)
+sortable.html.table(ncndata, 'sample.html', 'sandbox')
 
 
-########end of filtering
-ck <- (unique(stats3[[2]]$ways$attrs$user))
-length(unique(ua3$nodes$attrs$user))
-max(ua3$ways$attrs$timestamp)
+######################## Maps ##############################
+for (i in 1:(number)){
+  test <- NCNdata[i] == "NULL"
+  test2 <- (any(test == TRUE))
+  if(test2==TRUE){
+    NCNdata[i] <- "NA"}}  
+
+
+    maps <- lapply(NCNdata, function(x){
+        test <- x == "NA"
+      test2<- (any(test == TRUE))
+      if(test2==FALSE){
+    map<- as_sp(x, "lines")
+  return(map)
+}})
+    
+
+for (i in 1:(number)){
+  test <- stats3[i] == "NA"
+  test2<- (any(test == TRUE))
+  if(test==FALSE){
+    hmaps <- lapply(stats3, function(x){
+      map <- as_sp(x, "lines")
+    })
+  }}
+
+for (i in 1:(number)){
+  test <- NCNcyclewaymap[i] == "NULL"
+  test2 <- (any(test == TRUE))
+  if(test2==TRUE){
+    NCNcyclewaymap[i] <- "NA"}} 
+
+
+cmaps <- lapply(NCNcyclewaymap, function(x){
+  test <- x == "NA"
+  test2<- (any(test == TRUE))
+  if(test2==FALSE){
+    map<- as_sp(x, "lines")
+    return(map)
+  }})
+
+    for (i in 1:(number)){  
+      test <- cmaps[i] == "NULL"
+         test4<- (any(test == TRUE))
+      if(test4==FALSE){
+       nfiles <- paste(filename="/home/tim/R/polys/sandbox/plot",(i),".png",sep="")
+        png(nfiles)
+       plot(hmaps[[i]], col="gray")
+        plot(maps[[i]], add=TRUE, col="red")
+        plot(cmaps[[i]], add=TRUE, col="blue")
+title(main=namesall[i], col="black")
+        dev.off()  
+}}
+    
+
+               
+                  
+
