@@ -293,7 +293,7 @@ ncndata$'Total Highway (roads and paths)' <- round(Highway, digit=1)
 ncndata$'Total cycleway (in or out of NCN network)' <- round(Cycleway, digit=1)
 ncndata$'Current NCN Vs total highway length' <- (ncndata$'NCN current length km' / ncndata$'Total Highway (roads and paths)')
 ncndata$'Current NCN Vs total highway length' <- round(ncndata$'Current NCN Vs total highway length', digit=5)
-ncndata$'Total MTB only cycleway'<- TotalMtb$toal
+ncndata$'Total MTB only cycleway'<- round(TotalMtb, digit=2)
 
 
 sortable.html.table(ncndata, 'sample.html', 'sandbox')
